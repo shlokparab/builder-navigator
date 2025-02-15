@@ -1,5 +1,6 @@
 
 import { Bell, User } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export const Navbar = () => {
   return (
@@ -10,9 +11,9 @@ export const Navbar = () => {
           <button className="p-2 hover:bg-white/5 rounded-full transition-colors">
             <Bell className="w-5 h-5 text-gray-300" />
           </button>
-          <button className="p-2 hover:bg-white/5 rounded-full transition-colors">
+          <Link to="/profile" className="p-2 hover:bg-white/5 rounded-full transition-colors">
             <User className="w-5 h-5 text-gray-300" />
-          </button>
+          </Link>
         </div>
       </div>
     </nav>
