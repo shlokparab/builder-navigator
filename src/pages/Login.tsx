@@ -38,7 +38,7 @@ const Login = () => {
           <p className="mt-2 text-gray-400">Sign in to continue your journey</p>
         </div>
         <Button
-          className="w-full flex items-center justify-center gap-2 glass-effect hover:bg-white/5 text-white border-white/10"
+          className="w-full flex items-center justify-center gap-2 glass-effect hover:bg-white/5 text-white hover:text-white border-white/10"
           variant="outline"
           size="lg"
           onClick={handleGoogleSignIn}

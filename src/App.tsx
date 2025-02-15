@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -12,6 +11,7 @@ import IdeaValidation from "./pages/IdeaValidation";
 import MvpGeneration from "./pages/MvpGeneration";
 import InvestorOutreach from "./pages/InvestorOutreach";
 import NotFound from "./pages/NotFound";
+import Profile from "./pages/Profile";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +60,16 @@ const App = () => (
                 <Navbar />
                 <Sidebar />
                 <InvestorOutreach />
+              </>
+            }
+          />
+          <Route
+            path="/profile"
+            element={
+              <>
+                <Navbar />
+                <Sidebar />
+                <Profile />
               </>
             }
           />
