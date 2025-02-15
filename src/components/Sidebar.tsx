@@ -11,7 +11,7 @@ const navigation = [
 
 export const Sidebar = () => {
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 border-r bg-white/80 backdrop-blur-md pt-16">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 glass-effect pt-16">
       <div className="flex h-full flex-col px-3 py-4">
         <nav className="space-y-1">
           {navigation.map((item) => (
@@ -21,8 +21,8 @@ export const Sidebar = () => {
               className={({ isActive }) =>
                 `flex items-center px-2 py-2 text-sm font-medium rounded-lg transition-colors ${
                   isActive
-                    ? "bg-gray-100 text-gray-900"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+                    ? "bg-cyan-500/10 text-cyan-400"
+                    : "text-gray-400 hover:bg-white/5 hover:text-white"
                 }`
               }
             >

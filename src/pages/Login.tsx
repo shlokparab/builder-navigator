@@ -31,14 +31,14 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-2xl shadow-lg animate-fadeIn">
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-full max-w-md p-8 space-y-8 glass-effect rounded-2xl animate-fadeIn">
         <div className="text-center">
-          <h2 className="text-3xl font-bold text-gray-900">Welcome Back</h2>
-          <p className="mt-2 text-gray-600">Sign in to continue your journey</p>
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">Welcome Back</h2>
+          <p className="mt-2 text-gray-400">Sign in to continue your journey</p>
         </div>
         <Button
-          className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 border hover:bg-gray-50"
+          className="w-full flex items-center justify-center gap-2 glass-effect hover:bg-white/5 text-white border-white/10"
           variant="outline"
           size="lg"
           onClick={handleGoogleSignIn}
