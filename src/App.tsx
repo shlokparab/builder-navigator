@@ -12,6 +12,7 @@ import MvpGeneration from "./pages/MvpGeneration";
 import InvestorOutreach from "./pages/InvestorOutreach";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
+import Chat from "./components/Chat";
 
 const queryClient = new QueryClient();
 
@@ -70,6 +71,18 @@ const App = () => (
                 <Navbar />
                 <Sidebar />
                 <Profile />
+              </>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <>
+                <Navbar />
+                <Sidebar />
+                <div className="ml-64 p-8">
+                  <Chat />
+                </div>
               </>
             }
           />
