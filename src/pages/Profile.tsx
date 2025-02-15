@@ -144,7 +144,7 @@ const Profile = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background pt-16 pl-64">
+      <div className="min-h-screen bg-background pt-16">
         <div className="p-8 animate-fadeIn">
           <div className="max-w-3xl mx-auto">
             Loading...
@@ -155,21 +155,21 @@ const Profile = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background pt-16 pl-64">
-      <div className="p-8 animate-fadeIn">
-        <div className="max-w-3xl mx-auto space-y-8">
+    <div className="min-h-screen bg-background pt-16">
+      <div className="p-4 sm:p-8 animate-fadeIn">
+        <div className="max-w-3xl mx-auto space-y-6 sm:space-y-8">
           <header>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">
+            <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">
               Profile Settings
             </h1>
             <p className="mt-2 text-gray-400">Manage your account preferences and settings</p>
           </header>
 
-          <div className="glass-effect p-6 rounded-xl space-y-8">
+          <div className="glass-effect p-4 sm:p-6 rounded-xl space-y-6 sm:space-y-8">
             {/* Profile Picture Section */}
-            <div className="flex items-center gap-6">
+            <div className="flex flex-col sm:flex-row items-center gap-4 sm:gap-6">
               <div className="relative">
-                <Avatar className="w-24 h-24">
+                <Avatar className="w-20 h-20 sm:w-24 sm:h-24">
                   <AvatarImage src={profile?.avatar_url || undefined} />
                   <AvatarFallback>{profile?.full_name?.charAt(0) || 'U'}</AvatarFallback>
                 </Avatar>
@@ -188,7 +188,7 @@ const Profile = () => {
                   />
                 </label>
               </div>
-              <div>
+              <div className="text-center sm:text-left">
                 <h2 className="text-xl font-semibold text-white">{profile?.full_name}</h2>
                 <p className="text-gray-400">{profile?.bio || 'No bio yet'}</p>
               </div>

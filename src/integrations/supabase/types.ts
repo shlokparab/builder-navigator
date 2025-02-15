@@ -98,6 +98,37 @@ export type Database = {
         }
         Relationships: []
       }
+      projects: {
+        Row: {
+          id: string
+          created_at: string
+          user_id: string
+          name: string
+          chat_history: Json
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          user_id: string
+          name: string
+          chat_history?: Json
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          user_id?: string
+          name?: string
+          chat_history?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never

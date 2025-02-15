@@ -1,6 +1,6 @@
 import { FeatureCard } from "@/components/FeatureCard";
 import { LightbulbIcon, Rocket, Users, PlusCircle } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,6 +18,13 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
+
+const debug = (message: string, data?: any) => {
+  console.log(`[Dashboard] ${message}`, data || '');
+};
 
 const features = [
   {
@@ -41,17 +48,100 @@ const features = [
 ];
 
 const Dashboard = () => {
-  const [selectedProject, setSelectedProject] = useState("My First Project");
+  const { toast } = useToast();
+  const [projects, setProjects] = useState<string[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string>("");
   const [isNewProjectDialogOpen, setIsNewProjectDialogOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState("");
+  const navigate = useNavigate();
 
-  const projects = ["My First Project", "Second Project", "Another Project"]; // This would come from your backend
+  useEffect(() => {
+    debug('Component mounted, fetching projects');
+    fetchProjects();
+  }, []);
 
-  const handleCreateProject = () => {
-    // Handle project creation logic here
-    console.log("Creating project:", newProjectName);
-    setIsNewProjectDialogOpen(false);
-    setNewProjectName("");
+  const fetchProjects = async () => {
+    debug('Fetching projects');
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        debug('No user found');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("projects")
+        .select("name")
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+
+      const projectNames = data.map(project => project.name);
+      debug('Projects fetched', projectNames);
+      setProjects(projectNames);
+      
+      if (!selectedProject && projectNames.length > 0) {
+        debug('Setting initial selected project', projectNames[0]);
+        setSelectedProject(projectNames[0]);
+      }
+    } catch (error) {
+      debug('Error fetching projects', error);
+      toast({
+        title: "Error",
+        description: "Failed to load projects",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateProject = async () => {
+    debug('Creating new project', newProjectName);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        debug('No user found during project creation');
+        throw new Error("Not authenticated");
+      }
+
+      const { error } = await supabase
+        .from("projects")
+        .insert({
+          name: newProjectName,
+          user_id: user.id,
+          chat_history: [],
+        });
+
+      if (error) throw error;
+
+      debug('Project created successfully');
+      setSelectedProject(newProjectName);
+      setIsNewProjectDialogOpen(false);
+      setNewProjectName("");
+      
+      await fetchProjects();
+
+      toast({
+        title: "Success",
+        description: "Project created successfully",
+      });
+    } catch (error) {
+      debug('Error creating project', error);
+      toast({
+        title: "Error",
+        description: "Failed to create project",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFeatureClick = (href: string) => {
+    debug('Feature clicked', { href, selectedProject });
+    navigate(href, { state: { projectId: selectedProject } });
+  };
+
+  const handleProjectSelect = (project: string) => {
+    debug('Project selected', project);
+    setSelectedProject(project);
   };
 
   return (
@@ -66,13 +156,15 @@ const Dashboard = () => {
               <div className="flex items-center gap-2">
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="outline">{selectedProject}</Button>
+                    <Button variant="outline" disabled={projects.length === 0}>
+                      {selectedProject || "No projects"}
+                    </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent>
                     {projects.map((project) => (
                       <DropdownMenuItem
                         key={project}
-                        onClick={() => setSelectedProject(project)}
+                        onClick={() => handleProjectSelect(project)}
                       >
                         {project}
                       </DropdownMenuItem>
@@ -122,7 +214,11 @@ const Dashboard = () => {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {features.map((feature) => (
-              <FeatureCard key={feature.title} {...feature} />
+              <FeatureCard 
+                key={feature.title} 
+                {...feature} 
+                onClick={() => handleFeatureClick(feature.href)}
+              />
             ))}
           </div>
         </div>
