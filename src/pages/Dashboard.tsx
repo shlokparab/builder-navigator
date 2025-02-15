@@ -6,7 +6,7 @@ const features = [
     title: "Idea Validation",
     description: "Validate your startup idea with proven frameworks and methodologies",
     icon: LightbulbIcon,
-    href: "/ideas",
+    href: "/chat",
   },
   {
     title: "MVP Generation",
