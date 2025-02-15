@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -180,53 +179,49 @@ export default function Chat() {
       setIsLoading(false);
     }
   };
-
   return (
-    <Card className="flex flex-col h-[calc(100vh-8rem)] max-w-4xl mx-auto mt-[50px]">
-      <div className="border-b p-4">
-        <h2 className="text-xl font-semibold">AI Startup Advisor</h2>
-        <p className="text-sm text-muted-foreground">
-          Get expert analysis and validation for your startup ideas
-        </p>
+    <div className="flex flex-col h-[calc(100vh-2rem)] pt-16">
+      <div className="flex-1 overflow-hidden">
+        <ScrollArea className="h-full px-4">
+          <div className="max-w-4xl mx-auto space-y-4 py-1">
+            {messages.map((msg, index) => (
+              <div key={index} className="space-y-4">
+                <div className="flex justify-end">
+                  <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg max-w-[80%]">
+                    {msg.message}
+                  </div>
+                </div>
+                <div className="flex justify-start">
+                  <div className="bg-muted px-4 py-2 rounded-lg max-w-[80%] whitespace-pre-line">
+                    {msg.bot_response}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollArea>
       </div>
 
-      <ScrollArea className="flex-1 p-4">
-        <div className="space-y-4">
-          {messages.map((msg, index) => (
-            <div key={index} className="space-y-4">
-              <div className="flex justify-end">
-                <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg max-w-[80%]">
-                  {msg.message}
-                </div>
-              </div>
-              <div className="flex justify-start">
-                <div className="bg-muted px-4 py-2 rounded-lg max-w-[80%] whitespace-pre-line">
-                  {msg.bot_response}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </ScrollArea>
-
-      <form onSubmit={handleSubmit} className="border-t p-4">
-        <div className="flex gap-2">
-          <Input
-            value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
-            placeholder="Describe your startup idea..."
-            disabled={isLoading}
-            className="flex-1"
-          />
-          <Button type="submit" disabled={isLoading} size="icon">
-            {isLoading ? (
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            ) : (
-              <SendHorizontal className="h-4 w-4" />
-            )}
-          </Button>
-        </div>
-      </form>
-    </Card>
+      <div className="p-2 border-t mt-auto">
+        <form onSubmit={handleSubmit} className="max-w-4xl mx-auto">
+          <div className="flex gap-2">
+            <Input
+              value={newMessage}
+              onChange={(e) => setNewMessage(e.target.value)}
+              placeholder="Describe your startup idea..."
+              disabled={isLoading}
+              className="flex-1"
+            />
+            <Button type="submit" disabled={isLoading} size="icon">
+              {isLoading ? (
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              ) : (
+                <SendHorizontal className="h-4 w-4" />
+              )}
+            </Button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
