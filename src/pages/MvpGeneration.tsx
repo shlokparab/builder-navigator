@@ -1,10 +1,9 @@
-
 import { FeatureCard } from "@/components/FeatureCard";
 import { Code, Puzzle, Zap, BarChart } from "lucide-react";
 
 const MvpGeneration = () => {
   return (
-    <div className="p-6 pl-72 pt-24">
+    <div className="p-6 pt-24">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="space-y-4">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">

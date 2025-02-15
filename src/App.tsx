@@ -4,7 +4,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
-import { Sidebar } from "./components/Sidebar";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import IdeaValidation from "./pages/IdeaValidation";
@@ -29,7 +28,6 @@ const App = () => (
             element={
               <>
                 <Navbar />
-                <Sidebar />
                 <Dashboard />
               </>
             }
@@ -39,7 +37,6 @@ const App = () => (
             element={
               <>
                 <Navbar />
-                <Sidebar />
                 <IdeaValidation />
               </>
             }
@@ -49,7 +46,6 @@ const App = () => (
             element={
               <>
                 <Navbar />
-                <Sidebar />
                 <MvpGeneration />
               </>
             }
@@ -59,7 +55,6 @@ const App = () => (
             element={
               <>
                 <Navbar />
-                <Sidebar />
                 <InvestorOutreach />
               </>
             }
@@ -69,7 +64,6 @@ const App = () => (
             element={
               <>
                 <Navbar />
-                <Sidebar />
                 <Profile />
               </>
             }
@@ -79,8 +73,7 @@ const App = () => (
             element={
               <>
                 <Navbar />
-                <Sidebar />
-                <div className="ml-64 p-8">
+                <div className="p-8">
                   <Chat />
                 </div>
               </>
