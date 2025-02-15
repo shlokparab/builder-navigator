@@ -1,7 +1,35 @@
 
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/components/ui/use-toast";
 
 const Login = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  const handleGoogleSignIn = async () => {
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/dashboard`
+        }
+      });
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Error",
+        description: "Failed to sign in with Google. Please try again.",
+      });
+      console.error('Error:', error);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-2xl shadow-lg animate-fadeIn">
@@ -13,6 +41,7 @@ const Login = () => {
           className="w-full flex items-center justify-center gap-2 bg-white text-gray-700 border hover:bg-gray-50"
           variant="outline"
           size="lg"
+          onClick={handleGoogleSignIn}
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24">
             <path
