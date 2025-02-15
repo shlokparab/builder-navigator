@@ -8,6 +8,9 @@ import { Navbar } from "./components/Navbar";
 import { Sidebar } from "./components/Sidebar";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import IdeaValidation from "./pages/IdeaValidation";
+import MvpGeneration from "./pages/MvpGeneration";
+import InvestorOutreach from "./pages/InvestorOutreach";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +30,36 @@ const App = () => (
                 <Navbar />
                 <Sidebar />
                 <Dashboard />
+              </>
+            }
+          />
+          <Route
+            path="/ideas"
+            element={
+              <>
+                <Navbar />
+                <Sidebar />
+                <IdeaValidation />
+              </>
+            }
+          />
+          <Route
+            path="/mvp"
+            element={
+              <>
+                <Navbar />
+                <Sidebar />
+                <MvpGeneration />
+              </>
+            }
+          />
+          <Route
+            path="/investors"
+            element={
+              <>
+                <Navbar />
+                <Sidebar />
+                <InvestorOutreach />
               </>
             }
           />
