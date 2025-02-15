@@ -25,7 +25,7 @@ if not GOOGLE_API_KEY:
     raise ValueError("GOOGLE_API_KEY environment variable is not set")
 
 genai.configure(api_key=GOOGLE_API_KEY)
-model = genai.GenerativeModel('gemini-2.0-pro-exp-02-05')
+model = genai.GenerativeModel('gemini-2.0-flash')
 
 # Global chat history
 chat = model.start_chat(history=[])
