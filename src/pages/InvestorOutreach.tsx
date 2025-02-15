@@ -1,6 +1,6 @@
 
 import { FeatureCard } from "@/components/FeatureCard";
-import { PresentationChart, FileSpreadsheet, HandShake, TrendingUp } from "lucide-react";
+import { Presentation, FileSpreadsheet, Handshake, TrendingUp } from "lucide-react";
 
 const InvestorOutreach = () => {
   return (
@@ -19,7 +19,7 @@ const InvestorOutreach = () => {
           <FeatureCard
             title="Pitch Deck"
             description="Create compelling investor presentations"
-            icon={PresentationChart}
+            icon={Presentation}
             href="#pitch-deck"
           />
           <FeatureCard
@@ -31,7 +31,7 @@ const InvestorOutreach = () => {
           <FeatureCard
             title="Investor Network"
             description="Connect with relevant investors"
-            icon={HandShake}
+            icon={Handshake}
             href="#network"
           />
           <FeatureCard
