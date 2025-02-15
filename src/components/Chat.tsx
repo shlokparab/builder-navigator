@@ -6,47 +6,28 @@ import { Input } from "@/components/ui/input";
 import { SendHorizontal } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Json } from "@/integrations/supabase/types";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(import.meta.env.VITE_GEMINI_API_KEY || "");
-const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
 interface ChatMessage {
   user_id: string;
   message: string;
   bot_response: string;
   created_at: string;
+  contemplator?: string;
 }
 
 type DatabaseChat = ChatMessage[] | null;
 
-const SYSTEM_PROMPT = `You are an AI startup advisor. Your role is to help users validate their startup ideas by:
-1. Analyzing the feasibility of their idea
-2. Identifying potential market opportunities and challenges
-3. Suggesting improvements or pivots if necessary
-4. Providing actionable next steps
-
-Keep your responses concise, practical, and focused on helping the user move forward with their idea.
-Format your responses in clear sections without any special characters or markdown:
-
-Analysis:
-[Your analysis here]
-
-Market Potential:
-[Market potential details]
-
-Challenges:
-[Key challenges]
-
-Recommendations:
-[Your recommendations]
-`;
+interface ValidateIdeaResponse {
+  status: string;
+  contemplator: string;
+  result: string;
+}
 
 export default function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [askingForAnalysis, setAskingForAnalysis] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -82,27 +63,43 @@ export default function Chat() {
     }
   };
 
-  const generateGeminiResponse = async (
-    prompt: string,
-    history: ChatMessage[]
-  ) => {
+  const validateIdea = async (prompt: string): Promise<ValidateIdeaResponse> => {
     try {
-      // Create chat context from history
-      const chatContext = history
-        .map((msg) => `User: ${msg.message}\nAssistant: ${msg.bot_response}`)
-        .join("\n");
+      const response = await fetch(`https://builder-navigator.onrender.com/validate_idea?idea=${encodeURIComponent(prompt)}`, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      console.log("Response:", response);
+      if (!response.ok) {
+        throw new Error('Failed to validate idea');
+      }
 
-      // Combine system prompt, history, and new message
-      const fullPrompt = `${SYSTEM_PROMPT}\n\nChat History:\n${chatContext}\n\nUser: ${prompt}\nAssistant:`;
-
-      const result = await model.generateContent(fullPrompt);
-      const response = await result.response;
-      const text = response.text();
-      // Remove any potential markdown or special characters
-      return text.replace(/[*_~`]/g, '');
+      return await response.json();
     } catch (error) {
-      console.error("Error generating AI response:", error);
-      return "I apologize, but I encountered an error while analyzing your idea. Please try again.";
+      console.error("Error validating idea:", error);
+      throw error;
+    }
+  };
+
+  const analyzeMarket = async (prompt: string): Promise<ValidateIdeaResponse> => {
+    try {
+      const response = await fetch(`https://builder-navigator.onrender.com/analyze_market?idea=${encodeURIComponent(prompt)}`, {
+        method: 'GET',
+        mode: 'cors',
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        throw new Error('Failed to analyze market');
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Error analyzing market:", error);
+      throw error;
     }
   };
 
@@ -122,7 +119,7 @@ export default function Chat() {
       const newChatMessage: ChatMessage = {
         user_id: user.id,
         message: newMessage,
-        bot_response: "Analyzing your idea...",
+        bot_response: askingForAnalysis ? "Analyzing market..." : "Analyzing your idea...",
         created_at: new Date().toISOString(),
       };
 
@@ -151,16 +148,42 @@ export default function Chat() {
       setMessages(updatedChat);
       setNewMessage("");
 
-      // Generate AI response
-      const aiResponse = await generateGeminiResponse(newMessage, existingChat);
+      let validationResponse;
+      if (askingForAnalysis) {
+        if (newMessage.toLowerCase().includes('yes')) {
+          validationResponse = await analyzeMarket(messages[messages.length - 2].message);
+          setAskingForAnalysis(false);
+        } else {
+          validationResponse = {
+            status: 'declined',
+            contemplator: '',
+            result: 'No problem! Let me know if you want to analyze another startup idea.'
+          };
+          setAskingForAnalysis(false);
+        }
+      } else {
+        validationResponse = await validateIdea(newMessage);
+      }
 
       const botResponse: ChatMessage = {
         ...newChatMessage,
-        bot_response: aiResponse,
+        bot_response: validationResponse.result,
+        contemplator: validationResponse.contemplator,
         created_at: new Date().toISOString(),
       };
 
       const finalChat = [...updatedChat.slice(0, -1), botResponse];
+
+      if (validationResponse.status === 'sufficient_information' && !askingForAnalysis) {
+        setAskingForAnalysis(true);
+        const analysisQuestion: ChatMessage = {
+          user_id: user.id,
+          message: "",
+          bot_response: "Would you like me to perform a deep market analysis for your idea? (Yes/No)",
+          created_at: new Date().toISOString(),
+        };
+        finalChat.push(analysisQuestion);
+      }
 
       await supabase
         .from("profiles")
@@ -179,6 +202,7 @@ export default function Chat() {
       setIsLoading(false);
     }
   };
+
   return (
     <div className="flex flex-col h-[calc(100vh-2rem)] pt-16">
       <div className="flex-1 overflow-hidden">
@@ -186,11 +210,13 @@ export default function Chat() {
           <div className="max-w-4xl mx-auto space-y-4 py-1">
             {messages.map((msg, index) => (
               <div key={index} className="space-y-4">
-                <div className="flex justify-end">
-                  <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg max-w-[80%]">
-                    {msg.message}
+                {msg.message && (
+                  <div className="flex justify-end">
+                    <div className="bg-primary text-primary-foreground px-4 py-2 rounded-lg max-w-[80%]">
+                      {msg.message}
+                    </div>
                   </div>
-                </div>
+                )}
                 <div className="flex justify-start">
                   <div className="bg-muted px-4 py-2 rounded-lg max-w-[80%] whitespace-pre-line">
                     {msg.bot_response}
@@ -208,7 +234,7 @@ export default function Chat() {
             <Input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder="Describe your startup idea..."
+              placeholder={askingForAnalysis ? "Type 'yes' for market analysis..." : "Describe your startup idea..."}
               disabled={isLoading}
               className="flex-1"
             />
