@@ -1,6 +1,5 @@
-
 import { useEffect, useState } from "react";
-import { Camera, LogOut, Mail, Moon, Bell } from "lucide-react";
+import { Camera, LogOut, Mail, Moon, Bell, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
@@ -23,6 +22,11 @@ const Profile = () => {
   const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    bio: ''
+  });
 
   useEffect(() => {
     fetchProfile();
@@ -33,7 +37,7 @@ const Profile = () => {
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
-        navigate('/login');
+        navigate('/');
         return;
       }
 
@@ -106,7 +110,7 @@ const Profile = () => {
     try {
       const { error } = await supabase.auth.signOut();
       if (error) throw error;
-      navigate('/login');
+      navigate('/');
     } catch (error) {
       console.error('Error logging out:', error);
       toast({
@@ -188,51 +192,88 @@ const Profile = () => {
                   />
                 </label>
               </div>
-              <div className="text-center sm:text-left">
-                <h2 className="text-xl font-semibold text-white">{profile?.full_name}</h2>
-                <p className="text-gray-400">{profile?.bio || 'No bio yet'}</p>
+              <div className="text-center sm:text-left flex-1">
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <input
+                      type="text"
+                      value={editForm.full_name}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-md text-white"
+                      placeholder="Your name"
+                    />
+                    <textarea
+                      value={editForm.bio}
+                      onChange={(e) => setEditForm(prev => ({ ...prev, bio: e.target.value }))}
+                      className="w-full px-3 py-2 bg-black/20 border border-white/10 rounded-md text-white"
+                      placeholder="Your bio"
+                      rows={3}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        variant="default"
+                        onClick={async () => {
+                          await updateProfile(editForm);
+                          setIsEditing(false);
+                        }}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setIsEditing(false)}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="relative hidden sm:block">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute -right-2 -top-2 hover:bg-cyan-400"
+                        onClick={() => {
+                          setEditForm({
+                            full_name: profile?.full_name || '',
+                            bio: profile?.bio || ''
+                          });
+                          setIsEditing(true);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </Button>
+                      <h2 className="text-xl font-semibold text-white">{profile?.full_name}</h2>
+                      <p className="text-gray-400">{profile?.bio || 'No bio yet'}</p>
+                    </div>
+                    <div className="sm:hidden">
+                      <h2 className="text-xl font-semibold text-white">{profile?.full_name}</h2>
+                      <p className="text-gray-400 mb-3">{profile?.bio || 'No bio yet'}</p>
+                      <Button
+                        variant="outline"
+                        className="w-full glass-effect hover:bg-cyan-400 text-white border-white/10"
+                        onClick={() => {
+                          setEditForm({
+                            full_name: profile?.full_name || '',
+                            bio: profile?.bio || ''
+                          });
+                          setIsEditing(true);
+                        }}
+                      >
+                        <Pencil className="w-4 h-4 mr-2" />
+                        Edit Profile
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Settings Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between py-3 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <Moon className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <h3 className="text-sm font-medium text-white">Dark Mode</h3>
-                    <p className="text-sm text-gray-400">Enable dark mode theme</p>
-                  </div>
-                </div>
-                <Switch
-                  checked={profile?.preferred_theme === 'dark'}
-                  onCheckedChange={(checked) => 
-                    updateProfile({ preferred_theme: checked ? 'dark' : 'light' })
-                  }
-                />
-              </div>
-
-              <div className="flex items-center justify-between py-3 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <Bell className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <h3 className="text-sm font-medium text-white">Email Notifications</h3>
-                    <p className="text-sm text-gray-400">Receive email updates</p>
-                  </div>
-                </div>
-                <Switch
-                  checked={profile?.email_notifications}
-                  onCheckedChange={(checked) => 
-                    updateProfile({ email_notifications: checked })
-                  }
-                />
-              </div>
-            </div>
-
-            {/* Logout Button */}
+            {/* Settings Section - Remove the toggles and replace with just the logout button */}
             <Button
               variant="outline"
-              className="w-full glass-effect hover:bg-white/5 text-white border-white/10"
+              className="w-full glass-effect hover:bg-cyan-400 text-white border-white/10"
               onClick={handleLogout}
             >
               <LogOut className="w-4 h-4 mr-2" />

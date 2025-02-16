@@ -6,9 +6,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import IdeaValidation from "./pages/IdeaValidation";
-import MvpGeneration from "./pages/MvpGeneration";
-import InvestorOutreach from "./pages/InvestorOutreach";
 import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import Chat from "./components/Chat";
@@ -29,33 +26,6 @@ const App = () => (
               <>
                 <Navbar />
                 <Dashboard />
-              </>
-            }
-          />
-          <Route
-            path="/ideas"
-            element={
-              <>
-                <Navbar />
-                <IdeaValidation />
-              </>
-            }
-          />
-          <Route
-            path="/mvp"
-            element={
-              <>
-                <Navbar />
-                <MvpGeneration />
-              </>
-            }
-          />
-          <Route
-            path="/investors"
-            element={
-              <>
-                <Navbar />
-                <InvestorOutreach />
               </>
             }
           />

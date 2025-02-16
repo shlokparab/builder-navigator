@@ -42,7 +42,7 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto">
           <header className="mb-8">
             <div className="flex items-center justify-between">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-cyan-200 bg-clip-text text-transparent">
+              <h1 className="text-3xl font-bold bg-cyan-400 bg-clip-text text-transparent">
                 Welcome back
               </h1>
             </div>
