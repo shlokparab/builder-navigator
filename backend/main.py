@@ -674,10 +674,10 @@ async def generate_mvp():
             1. Project type classification (SaaS, Hardware, Non-tech, etc.)
             2. For tech projects:
                - Recommended tech stack with justification
-               - System architecture in Mermaid diagram format
+               - High-level system architecture description
                - If SaaS: One specific, non-trivial feature implementation example
             3. For non-tech projects:
-               - Process flow in Mermaid diagram format
+               - Process flow description
                - Specific, actionable implementation steps
             
             Focus on unique, insightful recommendations rather than common knowledge.
@@ -692,8 +692,8 @@ async def generate_mvp():
                     \\n\
                     Rationale: [Detailed explanation of recommendations]",
                 "mermaid": {{
-                    "system_architecture": "[Mermaid diagram or 'Not applicable']",
-                    "process_flow": "[Mermaid diagram or 'Not applicable']"
+                    "system_architecture": "[High-level system flow description or 'Not applicable']",
+                    "process_flow": "[Step-by-step process flow description or 'Not applicable']"
                 }},
                 "code": "Specific feature example or 'Not applicable'"
             }}
@@ -707,27 +707,12 @@ async def generate_mvp():
                 "code": "string"
             }}
 
-            For Mermaid diagrams, follow these strict rules:
-1. Node Naming:
-   - Use simple, consistent IDs (like A, B, C or user1, api2, db3)
-   - Reference the same ID throughout the diagram
-   - No spaces or special characters in IDs
-
-2. Node Labels:
-   - Place text descriptions in square brackets at the end of nodes: A[User Interface]
-   - Never put brackets in the middle of text! Never put stuff like [xyz()]! Thats a bracket in the middle of text! Stuff like this: A[User Interface (React)] is wrong! Avoid nesting brackets like this!!!!!!
-   - Keep descriptions concise
-
-3. Diagram Structure:
-   - Always start with "graph LR" or "graph TD"
-   - Use consistent indentation
-   - Group related components using subgraph
-   - End each subgraph properly
-
-4. Styling:
-   - Use white backgrounds
-   - Use simple color codes (#fff, #f9f, etc.)
-   - Keep styling consistent for similar components
+            For system and process flows:
+            1. Use clear, concise descriptions with arrow notation (e.g., "User --> Auth Service --> Database")
+            2. Break down complex flows into numbered steps using arrows to show direction (e.g., "1. Client --> API Gateway --> Auth Service")
+            3. Highlight key interactions and dependencies using arrow chains (e.g., "Payment Service --> Payment Gateway --> Bank API")
+            4. Keep descriptions focused on high-level components and their relationships
+            5. Use consistent arrow notation (-->) throughout the flow descriptions
             """
             
             mvp_response = mvp_model.generate_content(mvp_prompt)
