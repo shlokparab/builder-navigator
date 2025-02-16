@@ -17,6 +17,11 @@ HISTORY_DIR = "chat_history"
 if not os.path.exists(HISTORY_DIR):
     os.makedirs(HISTORY_DIR)
 
+# Create a directory for storing audio files if it doesn't exist
+AUDIO_DIR = "audio_files"
+if not os.path.exists(AUDIO_DIR):
+    os.makedirs(AUDIO_DIR)
+
 def save_chat_history(history):
     """Save chat history to a file"""
     try:
@@ -301,6 +306,19 @@ async def validate_startup_idea(idea: str):
                 # Save history to file
                 save_chat_history(latest_sufficient_history)
                 chat = model.start_chat(history=[])
+
+            # Log current chat history state
+            logger.info("Current chat history state at end of validation:")
+            logger.info(f"Chat history type: {type(chat.history)}")
+            logger.info(f"Chat history length: {len(chat.history) if chat.history else 0}")
+            if chat.history:
+                for i, msg in enumerate(chat.history):
+                    logger.info(f"Message {i + 1}:")
+                    logger.info(f"  Parts: {len(msg.parts) if hasattr(msg, 'parts') else 'No parts'}")
+                    if hasattr(msg, 'parts'):
+                        for j, part in enumerate(msg.parts):
+                            logger.info(f"    Part {j + 1}: {str(part)[:100]}...")
+
             return result
 
         except Exception as parse_error:
@@ -438,82 +456,69 @@ Requirements:
             logger.error(f"Query generation failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to generate search queries: {str(e)}")
 
-        # Check for cached SERP results
-        cached_results = load_serp_results(cleaned_queries)
-        if cached_results:
-            logger.info("Using cached SERP results")
-            setofresults = cached_results
-        else:
-            # Search for competitors
-            setofresults = []
-            try:
-                logger.info("Starting competitor search")
+        # Search for competitors
+        setofresults = []
+        try:
+            logger.info("Starting competitor search")
+            
+            for i, q in enumerate(cleaned_queries):
+                logger.info(f"Executing search query {i+1}/{len(cleaned_queries)}: '{q}'")
                 
-                for i, q in enumerate(cleaned_queries):
-                    logger.info(f"Executing search query {i+1}/{len(cleaned_queries)}: '{q}'")
+                try:
+                    params = {
+                        "api_key": os.getenv("SERPAPI_KEY"),
+                        "engine": "google",
+                        "q": q,
+                        "google_domain": "google.com",
+                        "gl": "us",
+                        "hl": "en",
+                    }
+                    logger.info(f"SERP API request parameters for query {i+1}: {params}")
                     
-                    try:
-                        params = {
-                            "api_key": os.getenv("SERPAPI_KEY"),
-                            "engine": "google",
-                            "q": q,
-                            "google_domain": "google.com",
-                            "gl": "us",
-                            "hl": "en",
-                        }
-                        logger.info(f"SERP API request parameters for query {i+1}: {params}")
+                    # Make request to SERPAPI
+                    response = requests.get("https://serpapi.com/search", params=params)
+                    response.raise_for_status()
+                    
+                    results = response.json()
+                    logger.info(f"SERP API response received for query {i+1}")
+                    
+                    # Extract organic results
+                    if "organic_results" in results:
+                        organic = results["organic_results"][:20]  # Get top 20 results
+                        logger.info(f"Found {len(organic)} organic results for query {i+1}")
                         
-                        # Make request to SERPAPI
-                        response = requests.get("https://serpapi.com/search", params=params)
-                        response.raise_for_status()
-                        
-                        results = response.json()
-                        logger.info(f"SERP API response received for query {i+1}")
-                        
-                        # Extract organic results
-                        if "organic_results" in results:
-                            organic = results["organic_results"][:20]  # Get top 20 results
-                            logger.info(f"Found {len(organic)} organic results for query {i+1}")
-                            
-                            record = []
-                            for j, entry in enumerate(organic, 1):
-                                if entry.get("title") and entry.get("link"):
-                                    record.append({
-                                        "title": entry["title"],
-                                        "link": entry["link"],
-                                        "snippet": entry.get("snippet", "")
-                                    })
-                                    logger.debug(f"Query {i+1}, Result {j}: {entry['title']}")
-                                    
-                            if record:
-                                setofresults.append(record)
-                                logger.info(f"Successfully processed query {i+1} with {len(record)} valid results")
-                            else:
-                                logger.warning(f"No valid results found for query {i+1}")
+                        record = []
+                        for j, entry in enumerate(organic, 1):
+                            if entry.get("title") and entry.get("link"):
+                                record.append({
+                                    "title": entry["title"],
+                                    "link": entry["link"],
+                                    "snippet": entry.get("snippet", "")
+                                })
+                                logger.debug(f"Query {i+1}, Result {j}: {entry['title']}")
+                                
+                        if record:
+                            setofresults.append(record)
+                            logger.info(f"Successfully processed query {i+1} with {len(record)} valid results")
                         else:
-                            logger.warning(f"No organic results found for query {i+1}")
-                        
-                        # Add a small delay between requests
-                        logger.info(f"Adding delay after query {i+1}")
-                        time.sleep(1)
-                        
-                    except requests.exceptions.RequestException as e:
-                        logger.error(f"Request failed for query {i+1}: {str(e)}")
-                        continue
-                    except Exception as e:
-                        logger.error(f"Unexpected error processing query {i+1}: {str(e)}")
-                        continue
+                            logger.warning(f"No valid results found for query {i+1}")
+                    else:
+                        logger.warning(f"No organic results found for query {i+1}")
+                    
+                    # Add a small delay between requests
+                    logger.info(f"Adding delay after query {i+1}")
+                    time.sleep(1)
+                    
+                except requests.exceptions.RequestException as e:
+                    logger.error(f"Request failed for query {i+1}: {str(e)}")
+                    continue
+                except Exception as e:
+                    logger.error(f"Unexpected error processing query {i+1}: {str(e)}")
+                    continue
                 
-                # Save the results if we got any
-                if setofresults:
-                    logger.info(f"Saving {len(setofresults)} result sets to cache")
-                    save_serp_results(cleaned_queries, setofresults)
-                else:
-                    logger.warning("No results to cache")
-                
-            except Exception as e:
-                logger.error(f"Search failed: {str(e)}")
-                raise HTTPException(status_code=500, detail=f"Failed to search competitors: {str(e)}")
+        except Exception as e:
+            logger.error(f"Search failed: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to search competitors: {str(e)}")
 
         # Check if we got any valid results
         if not setofresults:
@@ -717,3 +722,188 @@ async def generate_mvp():
     except Exception as e:
         logger.error(f"Unexpected error in MVP generation: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+@app.get("/validate_audio")
+async def validate_audio_idea(audio_url: str):
+    try:
+        logger.info(f"Processing audio validation request for URL: {audio_url}")
+        
+        # Create a unique filename for the audio
+        audio_filename = f"audio_{int(time.time())}.wav"
+        audio_path = os.path.join(AUDIO_DIR, audio_filename)
+        
+        # Download the audio file from Supabase
+        try:
+            response = requests.get(audio_url)
+            response.raise_for_status()
+            
+            with open(audio_path, "wb") as f:
+                f.write(response.content)
+            logger.info(f"Successfully downloaded audio to {audio_path}")
+        except Exception as e:
+            logger.error(f"Failed to download audio: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to download audio: {str(e)}")
+        
+        try:
+            # Upload the audio file to Gemini
+            audio_file = genai.upload_file(audio_path, mime_type="audio/wav")
+            logger.info(f"Successfully uploaded audio to Gemini")
+            
+            # Use the global chat instance
+            global chat, latest_sufficient_history
+            
+            # Send both the prompt and audio file
+            response = chat.send_message([
+                prompt + "\nPlease analyze the following audio pitch and provide feedback: ",
+                audio_file
+            ])
+            
+            if not response.text:
+                logger.error("Empty response from model")
+                raise HTTPException(status_code=500, detail="Failed to generate response")
+            
+            # Process the response similar to text validation
+            try:
+                # Clean response text
+                cleaned_response = response.text.strip()
+                
+                # Remove XML code block markers if present
+                if cleaned_response.startswith('```xml'):
+                    cleaned_response = cleaned_response[6:]
+                if cleaned_response.endswith('```'):
+                    cleaned_response = cleaned_response[:-3]
+                cleaned_response = cleaned_response.strip()
+
+                # Extract contemplator content
+                contemplator_start = cleaned_response.find('<contemplator>') + len('<contemplator>')
+                contemplator_end = cleaned_response.find('</contemplator>')
+                if contemplator_end == -1:
+                    logger.error("Could not find contemplator tags in response")
+                    raise ValueError("Invalid response format: missing contemplator tags")
+                contemplator_content = cleaned_response[contemplator_start:contemplator_end].strip()
+
+                # Extract final answer content
+                final_answer_start = cleaned_response.find('<final_answer>') + len('<final_answer>')
+                final_answer_end = cleaned_response.find('</final_answer>')
+                if final_answer_end == -1:
+                    logger.error("Could not find final_answer tags in response")
+                    raise ValueError("Invalid response format: missing final_answer tags")
+                final_answer_text = cleaned_response[final_answer_start:final_answer_end].strip()
+
+                # Clean and parse the final answer JSON
+                final_answer_text = final_answer_text.replace('{{{{', '{').replace('}}}}', '}')
+                
+                try:
+                    final_answer_json = json.loads(final_answer_text)
+                except json.JSONDecodeError:
+                    logger.warning("Direct JSON parsing failed, attempting to extract JSON content")
+                    try:
+                        # Extract status
+                        status_start = final_answer_text.find('"status":') + len('"status":')
+                        if status_start == -1:
+                            raise ValueError("Could not find status in response")
+                        
+                        status_content_start = final_answer_text.find('"', status_start)
+                        status_content_end = final_answer_text.find('"', status_content_start + 1)
+                        if status_content_start == -1 or status_content_end == -1:
+                            status_end = final_answer_text.find(',', status_start)
+                            if status_end == -1:
+                                status_end = final_answer_text.find('\n', status_start)
+                            if status_end == -1:
+                                raise ValueError("Could not find end of status")
+                            status = final_answer_text[status_start:status_end].strip()
+                        else:
+                            status = final_answer_text[status_content_start + 1:status_content_end].strip()
+                        
+                        # Extract response
+                        response_start = final_answer_text.find('"response":') + len('"response":')
+                        if response_start == -1:
+                            raise ValueError("Could not find response in final answer")
+                        
+                        response_content_start = final_answer_text.find('"', response_start)
+                        if response_content_start == -1:
+                            response_content = final_answer_text[response_start:].strip()
+                            if "</final_answer>" in response_content:
+                                response_content = response_content[:response_content.find("</final_answer>")].strip()
+                        else:
+                            pos = response_content_start + 1
+                            while pos < len(final_answer_text):
+                                if final_answer_text[pos] == '"' and final_answer_text[pos-1] != '\\':
+                                    break
+                                pos += 1
+                            if pos >= len(final_answer_text):
+                                raise ValueError("Could not find end of response content")
+                            response_content = final_answer_text[response_content_start + 1:pos]
+                        
+                        final_answer_json = {
+                            "status": status,
+                            "response": response_content
+                        }
+                    except Exception as e:
+                        logger.error(f"Failed to extract JSON content: {str(e)}")
+                        raise ValueError(f"Could not parse response content: {str(e)}")
+
+                # Build result
+                result = {
+                    "status": str(final_answer_json.get("status", "error")),
+                    "contemplator": contemplator_content,
+                    "result": final_answer_json.get("response", "No response generated")
+                }
+
+                # Store history if we have sufficient information
+                if result["status"] == "sufficient_information":
+                    logger.info("Sufficient information received, storing chat history")
+                    latest_sufficient_history = chat.history.copy()
+                    save_chat_history(latest_sufficient_history)
+                    # Reset chat for next conversation
+                    chat = model.start_chat(history=[])
+                    
+                    # Clean up the audio file only when we have sufficient information
+                    try:
+                        os.remove(audio_path)
+                        logger.info(f"Cleaned up audio file after receiving sufficient information: {audio_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to clean up audio file: {str(e)}")
+                else:
+                    logger.info(f"Keeping audio file {audio_path} as we don't have sufficient information yet")
+
+                # Log current chat history state
+                logger.info("Current chat history state at end of audio validation:")
+                logger.info(f"Chat history type: {type(chat.history)}")
+                logger.info(f"Chat history length: {len(chat.history) if chat.history else 0}")
+                if chat.history:
+                    for i, msg in enumerate(chat.history):
+                        logger.info(f"Message {i + 1}:")
+                        logger.info(f"  Parts: {len(msg.parts) if hasattr(msg, 'parts') else 'No parts'}")
+                        if hasattr(msg, 'parts'):
+                            for j, part in enumerate(msg.parts):
+                                logger.info(f"    Part {j + 1}: {str(part)[:100]}...")
+                
+                return result
+
+            except Exception as parse_error:
+                logger.error(f"Parse error: {str(parse_error)}")
+                error_info = {
+                    "error_type": type(parse_error).__name__,
+                    "message": str(parse_error),
+                    "raw_response": response.text
+                }
+                raise HTTPException(status_code=422, detail=error_info)
+                
+        except Exception as e:
+            logger.error(f"Gemini processing error: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Failed to process audio with Gemini: {str(e)}")
+        finally:
+            # Only clean up audio file in case of errors
+            try:
+                if os.path.exists(audio_path) and result.get("status") != "sufficient_information":
+                    os.remove(audio_path)
+                    logger.info(f"Cleaned up audio file in finally block due to error: {audio_path}")
+            except Exception as e:
+                logger.warning(f"Failed to clean up audio file in finally block: {str(e)}")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Validation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
