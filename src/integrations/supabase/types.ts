@@ -1,3 +1,22 @@
+import { FormEvent } from "react";
+
+export type CustomFormEvent = FormEvent<HTMLFormElement>;
+
+export function createCustomFormEvent(): CustomFormEvent {
+  const event = new Event('submit', {
+    bubbles: true,
+    cancelable: true,
+  }) as unknown as CustomFormEvent;
+
+  // Add required FormEvent properties
+  event.nativeEvent = new Event('submit') as any;
+  event.isDefaultPrevented = () => false;
+  event.isPropagationStopped = () => false;
+  event.persist = () => {};
+
+  return event;
+}
+
 export type Json =
   | string
   | number
@@ -52,6 +71,7 @@ export type Database = {
           id: string
           preferred_theme: string | null
           updated_at: string
+          audio: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -74,6 +94,7 @@ export type Database = {
           id?: string
           preferred_theme?: string | null
           updated_at?: string
+          audio?: string | null
         }
         Relationships: []
       }
