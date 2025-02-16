@@ -191,7 +191,6 @@ export default function Chat() {
           },
         }
       );
-      console.log("Response:", response);
       if (!response.ok) {
         throw new Error("Failed to validate idea");
       }
@@ -278,8 +277,6 @@ export default function Chat() {
         console.error("Error uploading to Supabase Storage:", uploadError);
         throw uploadError;
       }
-
-      console.log("Successfully uploaded to Supabase Storage:", uploadData);
 
       // Get the public URL for the uploaded file
       const {
@@ -484,7 +481,6 @@ export default function Chat() {
             throw new Error("Failed to get investor recommendations");
           }
           const investorData: InvestorRecommendation = await response.json();
-          console.log("Investor data:", investorData);
           const botResponse: ChatMessage = {
             ...newChatMessage,
             bot_response: `Here are some recommended investors for your startup:
