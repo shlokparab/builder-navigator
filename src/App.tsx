@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Navbar } from "./components/Navbar";
+import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import NotFound from "./pages/NotFound";
@@ -23,30 +24,30 @@ const App = () => (
           <Route
             path="/dashboard"
             element={
-              <>
+              <ProtectedRoute>
                 <Navbar />
                 <Dashboard />
-              </>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/profile"
             element={
-              <>
+              <ProtectedRoute>
                 <Navbar />
                 <Profile />
-              </>
+              </ProtectedRoute>
             }
           />
           <Route
             path="/chat"
             element={
-              <>
+              <ProtectedRoute>
                 <Navbar />
                 <div className="p-8">
                   <Chat />
                 </div>
-              </>
+              </ProtectedRoute>
             }
           />
           <Route path="*" element={<NotFound />} />
