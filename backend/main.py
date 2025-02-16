@@ -707,12 +707,10 @@ async def generate_mvp():
                 "code": "string"
             }}
 
-            For system and process flows:
-            1. Use clear, concise descriptions with arrow notation (e.g., "User --> Auth Service --> Database")
-            2. Break down complex flows into numbered steps using arrows to show direction (e.g., "1. Client --> API Gateway --> Auth Service")
-            3. Highlight key interactions and dependencies using arrow chains (e.g., "Payment Service --> Payment Gateway --> Bank API")
-            4. Keep descriptions focused on high-level components and their relationships
-            5. Use consistent arrow notation (-->) throughout the flow descriptions
+            For flows:
+            1. Use a single line with arrow notation (-->)
+            2. Keep it minimal, but showing only core components
+            3. Example format: "Component1 --> Component2 --> Component3"
             """
             
             mvp_response = mvp_model.generate_content(mvp_prompt)
