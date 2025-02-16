@@ -20,22 +20,98 @@ if not os.path.exists(HISTORY_DIR):
 def save_chat_history(history):
     """Save chat history to a file"""
     try:
-        with open(os.path.join(HISTORY_DIR, "latest_history.pkl"), "wb") as f:
+        logger.info(f"Attempting to save chat history. History type: {type(history)}, Length: {len(history) if history else 0}")
+        history_path = os.path.join(HISTORY_DIR, "latest_history.pkl")
+        logger.info(f"Saving to path: {history_path}")
+        
+        # Create directory if it doesn't exist
+        if not os.path.exists(HISTORY_DIR):
+            logger.info(f"Creating directory: {HISTORY_DIR}")
+            os.makedirs(HISTORY_DIR)
+        
+        with open(history_path, "wb") as f:
             pickle.dump(history, f)
-        logger.info("Successfully saved chat history")
+        logger.info(f"Successfully saved chat history to {history_path}")
     except Exception as e:
         logger.error(f"Failed to save chat history: {str(e)}")
+        logger.error(f"Error type: {type(e)}")
+        logger.error(f"Current working directory: {os.getcwd()}")
+        raise
 
 def load_chat_history():
     """Load chat history from file"""
     try:
         history_path = os.path.join(HISTORY_DIR, "latest_history.pkl")
-        if os.path.exists(history_path):
-            with open(history_path, "rb") as f:
-                return pickle.load(f)
+        logger.info(f"Attempting to load chat history from: {history_path}")
+        
+        if not os.path.exists(HISTORY_DIR):
+            logger.error(f"Chat history directory does not exist: {HISTORY_DIR}")
+            return None
+            
+        if not os.path.exists(history_path):
+            logger.error(f"Chat history file does not exist: {history_path}")
+            return None
+            
+        with open(history_path, "rb") as f:
+            history = pickle.load(f)
+            logger.info(f"Successfully loaded chat history. Type: {type(history)}, Length: {len(history) if history else 0}")
+            return history
     except Exception as e:
         logger.error(f"Failed to load chat history: {str(e)}")
-    return None
+        logger.error(f"Error type: {type(e)}")
+        logger.error(f"Current working directory: {os.getcwd()}")
+        return None
+
+def save_serp_results(queries, results):
+    """Save SERP results to a file"""
+    try:
+        logger.info(f"Attempting to save SERP results for {len(queries)} queries")
+        serp_path = os.path.join(HISTORY_DIR, "latest_serp_results.pkl")
+        
+        # Create directory if it doesn't exist
+        if not os.path.exists(HISTORY_DIR):
+            logger.info(f"Creating directory: {HISTORY_DIR}")
+            os.makedirs(HISTORY_DIR)
+        
+        # Save both queries and results to ensure we can validate later
+        data = {
+            "queries": queries,
+            "results": results,
+            "timestamp": time.time()
+        }
+        
+        with open(serp_path, "wb") as f:
+            pickle.dump(data, f)
+        logger.info(f"Successfully saved SERP results to {serp_path}")
+        return True
+    except Exception as e:
+        logger.error(f"Failed to save SERP results: {str(e)}")
+        return False
+
+def load_serp_results(current_queries):
+    """Load SERP results if they exist"""
+    try:
+        serp_path = os.path.join(HISTORY_DIR, "latest_serp_results.pkl")
+        
+        if not os.path.exists(serp_path):
+            logger.info("No cached SERP results found")
+            return None
+            
+        with open(serp_path, "rb") as f:
+            data = pickle.load(f)
+            
+        # Validate data structure
+        if not isinstance(data, dict) or "queries" not in data or "results" not in data:
+            logger.error("Invalid SERP results data structure")
+            return None
+            
+        # Always return cached results if they exist
+        logger.info("Using cached SERP results")
+        return data["results"]
+            
+    except Exception as e:
+        logger.error(f"Failed to load SERP results: {str(e)}")
+        return None
 
 app = FastAPI()
 
@@ -219,7 +295,9 @@ async def validate_startup_idea(idea: str):
             # Store history if we have sufficient information before resetting
             if result["status"] == "sufficient_information":
                 logger.info("Sufficient information received, storing chat history")
+                logger.info(f"Current chat history type: {type(chat.history)}, Length: {len(chat.history) if chat.history else 0}")
                 latest_sufficient_history = chat.history.copy()
+                logger.info(f"Copied history type: {type(latest_sufficient_history)}, Length: {len(latest_sufficient_history) if latest_sufficient_history else 0}")
                 # Save history to file
                 save_chat_history(latest_sufficient_history)
                 chat = model.start_chat(history=[])
@@ -282,7 +360,7 @@ async def market_analysis():
         # Analyze conversation to understand the business
         try:
             logger.info("Analyzing conversation")
-            analysis = analysis_model.generate_content(f"Based on this conversation about a startup idea, analyze the core business concept and value proposition: {conversation_text}")
+            analysis = analysis_model.generate_content(f"Based on this conversation about a startup idea, analyze the core business concept and value proposition: {conversation_text}.")
             if not analysis.text:
                 logger.error("Empty analysis response")
                 raise ValueError("Failed to analyze conversation")
@@ -294,168 +372,202 @@ async def market_analysis():
         # Generate search queries
         try:
             logger.info("Generating search queries")
-            queries = searchquery_model.generate_content(f"Company analysis: {analysis.text}")
-            cleaned_queries = eval(queries.text.replace("```python", "").replace("```", "").strip())
+            queries = searchquery_model.generate_content(f"""
+Based on this startup idea conversation and business analysis, generate EXACTLY 3 specific search queries that would help find direct competitors.
+Format the response as a valid Python list of strings. For example: ["query 1", "query 2", "query 3"]
+
+Conversation History:
+{conversation_text}
+
+Business Analysis:
+{analysis.text}
+
+Requirements:
+1. Generate EXACTLY 3 queries, no more, no less
+2. Each query should be specific and targeted to find direct competitors
+3. Include the company's core business model/product type in each query
+4. Format as a Python list of strings
+5. DO NOT include generic terms like "best" or "top" alone
+6. Each query should be 3-6 words long and highly specific
+""")
+            # Clean and parse the response
+            query_text = queries.text.strip()
+            logger.info(f"Raw query response: {query_text}")
+            
+            # Remove any code block markers
+            query_text = query_text.replace("```python", "").replace("```", "").strip()
+            logger.info(f"Cleaned query text: {query_text}")
+            
+            try:
+                # First try direct eval of the list
+                cleaned_queries = eval(query_text)
+                logger.info(f"Successfully evaluated query text as list: {cleaned_queries}")
+            except Exception as eval_error:
+                logger.warning(f"Failed to eval query text: {str(eval_error)}")
+                # If that fails, try to parse it manually
+                query_text = query_text.replace("[", "").replace("]", "")
+                cleaned_queries = [q.strip().strip('"\'') for q in query_text.split(",") if q.strip()]
+                logger.info(f"Manually parsed queries: {cleaned_queries}")
+            
+            # Ensure exactly 3 queries
             if not cleaned_queries or not isinstance(cleaned_queries, list):
                 logger.error("Invalid search queries generated")
-                raise ValueError("Failed to generate search queries")
-            logger.info(f"Generated {len(cleaned_queries)} search queries")
+                raise ValueError("Failed to generate valid search queries")
+            
+            # Take only first 3 queries if more were generated
+            if len(cleaned_queries) > 3:
+                logger.warning(f"More than 3 queries generated ({len(cleaned_queries)}), truncating to first 3")
+                cleaned_queries = cleaned_queries[:3]
+            
+            # If less than 3 queries, add generic ones based on analysis
+            if len(cleaned_queries) < 3:
+                logger.warning(f"Less than 3 queries generated ({len(cleaned_queries)}), adding generic queries")
+                while len(cleaned_queries) < 3:
+                    generic_query = f"competitors {analysis.text[:50]}"
+                    cleaned_queries.append(generic_query)
+                    logger.info(f"Added generic query: {generic_query}")
+            
+            # Ensure all queries are strings and non-empty
+            cleaned_queries = [str(q) for q in cleaned_queries if q]
+            
+            logger.info(f"Final search queries ({len(cleaned_queries)}):")
+            for i, query in enumerate(cleaned_queries, 1):
+                logger.info(f"Query {i}: {query}")
+                
         except Exception as e:
             logger.error(f"Query generation failed: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to generate search queries: {str(e)}")
 
-        # Search for competitors
-        setofresults = []
-        try:
-            logger.info("Starting competitor search")
-            
-            # Configure Bright Data API
-            bright_data_url = "https://api.brightdata.com/request"
-            headers = {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {os.getenv('BRIGHTDATA_API_KEY')}"
-            }
-            
-            for i, q in enumerate(cleaned_queries):
-                logger.info(f"Processing search query {i+1}/{len(cleaned_queries)}")
+        # Check for cached SERP results
+        cached_results = load_serp_results(cleaned_queries)
+        if cached_results:
+            logger.info("Using cached SERP results")
+            setofresults = cached_results
+        else:
+            # Search for competitors
+            setofresults = []
+            try:
+                logger.info("Starting competitor search")
                 
-                try:
-                    # Prepare the search URL and request body
-                    encoded_query = requests.utils.quote(q)
-                    search_url = f"https://www.google.com/search?q={encoded_query}"
+                for i, q in enumerate(cleaned_queries):
+                    logger.info(f"Executing search query {i+1}/{len(cleaned_queries)}: '{q}'")
                     
-                    payload = {
-                        "zone": "serp_api1",
-                        "url": search_url,
-                        "format": "raw"
-                    }
-                    
-                    # Make request to Bright Data
-                    response = requests.post(bright_data_url, headers=headers, json=payload)
-                    response.raise_for_status()
-                    
-                    # Check if response contains error
-                    results = response.json()
-                    if "error" in results:
-                        logger.error(f"Bright Data API error: {results['error']}")
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Search query {i+1} failed: {results['error']}"
-                        )
-                    
-                    # Validate response structure
-                    if "organic" not in results:
-                        logger.error("Missing organic results in API response")
-                        raise HTTPException(
-                            status_code=500,
-                            detail=f"Invalid response format for query {i+1}"
-                        )
-                    
-                    setofresults.append(results)
-                    
-                    # Add a small delay between requests to avoid rate limiting
-                    time.sleep(1)
-                    
-                except requests.exceptions.RequestException as e:
-                    logger.error(f"Request failed for query {i+1}: {str(e)}")
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Failed to fetch results for query {i+1}: {str(e)}"
-                    )
-                except json.JSONDecodeError as e:
-                    logger.error(f"Failed to parse response for query {i+1}: {str(e)}")
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Invalid response format for query {i+1}"
-                    )
-            
-            logger.info("Completed competitor search")
-        except Exception as e:
-            logger.error(f"Search failed: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Failed to search competitors: {str(e)}")
-
-        # Process results
-        try:
-            logger.info("Processing search results")
-            processed_results = []
-            for result in setofresults:
-                try:
-                    # Extract organic search results
-                    organic_results = result.get("organic", [])[:20]
-                    if not organic_results:
-                        logger.warning("No organic results found in response")
-                        continue
-                        
-                    record = []
-                    
-                    for entry in organic_results:
-                        # Validate required fields
-                        if not entry.get("title") or not entry.get("link"):
-                            logger.warning("Skipping result with missing required fields")
-                            continue
-                            
-                        result_data = {
-                            "title": entry.get("title", ""),
-                            "link": entry.get("link", ""),
-                            "description": entry.get("description", ""),
-                            "rank": entry.get("rank", 0),
-                            "global_rank": entry.get("global_rank", 0)
+                    try:
+                        params = {
+                            "api_key": os.getenv("SERPAPI_KEY"),
+                            "engine": "google",
+                            "q": q,
+                            "google_domain": "google.com",
+                            "gl": "us",
+                            "hl": "en",
                         }
+                        logger.info(f"SERP API request parameters for query {i+1}: {params}")
                         
-                        # Add image data if available and valid
-                        if "image" in entry and entry["image"]:
-                            result_data["image"] = entry.get("image", "")
-                            result_data["image_alt"] = entry.get("image_alt", "")
+                        # Make request to SERPAPI
+                        response = requests.get("https://serpapi.com/search", params=params)
+                        response.raise_for_status()
                         
-                        # Add display link if available
-                        if "display_link" in entry and entry["display_link"]:
-                            result_data["display_link"] = entry.get("display_link", "")
+                        results = response.json()
+                        logger.info(f"SERP API response received for query {i+1}")
+                        
+                        # Extract organic results
+                        if "organic_results" in results:
+                            organic = results["organic_results"][:20]  # Get top 20 results
+                            logger.info(f"Found {len(organic)} organic results for query {i+1}")
                             
-                        record.append(result_data)
-                    
-                    # Only add metadata if we have actual results
-                    if record:
-                        # Add additional context data if available
-                        if "general" in result:
-                            record.append({
-                                "search_metadata": {
-                                    "total_results": result["general"].get("results_cnt", 0),
-                                    "search_time": result["general"].get("search_time", 0),
-                                    "location": result["general"].get("location", ""),
-                                    "language": result["general"].get("language", "")
-                                }
-                            })
+                            record = []
+                            for j, entry in enumerate(organic, 1):
+                                if entry.get("title") and entry.get("link"):
+                                    record.append({
+                                        "title": entry["title"],
+                                        "link": entry["link"],
+                                        "snippet": entry.get("snippet", "")
+                                    })
+                                    logger.debug(f"Query {i+1}, Result {j}: {entry['title']}")
+                                    
+                            if record:
+                                setofresults.append(record)
+                                logger.info(f"Successfully processed query {i+1} with {len(record)} valid results")
+                            else:
+                                logger.warning(f"No valid results found for query {i+1}")
+                        else:
+                            logger.warning(f"No organic results found for query {i+1}")
                         
-                        processed_results.append(record)
-                except Exception as e:
-                    logger.error(f"Failed to process result: {str(e)}")
-                    continue
-                    
-            if not processed_results:
-                raise HTTPException(
-                    status_code=500,
-                    detail="No valid results could be processed from the search responses"
-                )
+                        # Add a small delay between requests
+                        logger.info(f"Adding delay after query {i+1}")
+                        time.sleep(1)
+                        
+                    except requests.exceptions.RequestException as e:
+                        logger.error(f"Request failed for query {i+1}: {str(e)}")
+                        continue
+                    except Exception as e:
+                        logger.error(f"Unexpected error processing query {i+1}: {str(e)}")
+                        continue
                 
-            logger.info(f"Processed {len(processed_results)} result sets")
-        except Exception as e:
-            logger.error(f"Result processing failed: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Failed to process search results: {str(e)}")
+                # Save the results if we got any
+                if setofresults:
+                    logger.info(f"Saving {len(setofresults)} result sets to cache")
+                    save_serp_results(cleaned_queries, setofresults)
+                else:
+                    logger.warning("No results to cache")
+                
+            except Exception as e:
+                logger.error(f"Search failed: {str(e)}")
+                raise HTTPException(status_code=500, detail=f"Failed to search competitors: {str(e)}")
+
+        # Check if we got any valid results
+        if not setofresults:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to get any valid search results. Please try again."
+            )
+        
+        # Flatten results for competitor analysis
+        processed_results = []
+        for result_set in setofresults:
+            processed_results.extend(result_set)
+        
+        logger.info(f"Completed competitor search with {len(processed_results)} total results")
 
         # Find top competitors
-        try:
-            logger.info("Identifying top competitors")
-            competitors = competitorfinder_model.generate_content(
-                f"Company Data: {analysis.text}, Probable competitors: {processed_results}"
-            )
-            if not competitors.text:
-                logger.error("Empty competitor analysis response")
-                raise ValueError("Failed to identify competitors")
-            top_competitors = json.loads(competitors.text)
-            logger.info("Successfully identified top competitors")
-        except Exception as e:
-            logger.error(f"Competitor analysis failed: {str(e)}")
-            raise HTTPException(status_code=500, detail=f"Failed to identify top competitors: {str(e)}")
+        logger.info("Identifying top competitors")
+        competitors = competitorfinder_model.generate_content(f"""
+Based on the following business analysis and search results, identify the top 3-5 DIRECT competitors. 
+Focus on companies that directly compete in the same space, not generic listings or articles.
+
+Business Analysis:
+{analysis.text}
+
+Search Results:
+{processed_results}
+
+Requirements:
+1. Return a JSON object with this exact structure:
+{{
+    "competitors": [
+        {{
+            "name": "Competitor Name",
+            "description": "2-3 sentence description of how they compete",
+            "differentiators": "Key ways they differ from the proposed business",
+            "url": "Main company URL"
+        }}
+    ]
+}}
+
+2. Only include actual companies that are direct competitors
+3. Skip any listicle sites, review sites, or general articles
+4. For each competitor, verify they have a real web presence
+5. Focus on companies with similar business models and target markets
+6. DO NOT INCLUDE FLAVOUR TEXT. Do not say stuff like "The model has correctly identified the competitors" or anything like that. Do NOT mention the key search terms. Simply provide the core competitors. 
+Now use these core competitors to give the startup strategic advice on company building and growth. 
+Advise them on what they can do to set themselves apart from the competitors.
+NOTE: PRETEND THE MODEL'S RESULTS WERE YOUR OWN RESULTS. YOU ARE TALKING TO THE FOUNDER OF THE STARTUP. YOU ARE SPEAKING FOR ALL DATA YOU HAVE
+""")
+        if not competitors.text:
+            logger.error("Empty competitor analysis response")
+            raise ValueError("Failed to identify competitors")
+        top_competitors = json.loads(competitors.text)
+        logger.info("Successfully identified top competitors")
 
         # Generate complete analysis
         complete_analysis = f"""
@@ -464,20 +576,20 @@ Based on our analysis of your conversation history, we identified the following 
 Business Analysis:
 {analysis.text}
 
-Key Search Terms:
+Key Search Terms Used:
 {', '.join(cleaned_queries)}
 
-Top Competitors Overview:
-{json.dumps(top_competitors, indent=2)}
+Direct Competitors:
+{json.dumps(top_competitors.get('competitors', []), indent=2)}
 
-This analysis provides a comprehensive view of your business's market position and its main competitors.
+This analysis maps out your direct competition in the market.
 """
         logger.info("Market analysis completed successfully")
         return {
             "competitors": top_competitors,
             "analysis": complete_analysis
         }
-
+        
     except HTTPException:
         raise
     except Exception as e:
@@ -490,10 +602,13 @@ async def generate_mvp():
         global latest_sufficient_history
         
         logger.info("Starting MVP generation")
+        logger.info(f"Initial latest_sufficient_history state: {type(latest_sufficient_history) if latest_sufficient_history else 'None'}")
         
         # Try to load history from file if not in memory
         if not latest_sufficient_history:
+            logger.info("No history in memory, attempting to load from file")
             latest_sufficient_history = load_chat_history()
+            logger.info(f"Loaded history state: {type(latest_sufficient_history) if latest_sufficient_history else 'None'}")
         
         # Check if we have stored sufficient history
         if not latest_sufficient_history:
