@@ -57,7 +57,7 @@ interface ValidateAudioResponse {
 }
 
 interface MVPResponse {
-  main_response: string;
+  main_response: string;  
   code: string;
   mermaid: {
     system_architecture: string;
@@ -484,20 +484,11 @@ export default function Chat() {
           const botResponse: ChatMessage = {
             ...newChatMessage,
             bot_response: `Here are some recommended investors for your startup:
-${
-  investorData.investors?.[0]?.investor.split(" (ID:")[0] ||
-  "No investor data available"
-}
+${investorData.investors?.[0]?.investor || "No investor data available"}
 
-${
-  investorData.investors?.[1]?.investor.split(" (ID:")[0] ||
-  "No investor data available"
-}
+${investorData.investors?.[1]?.investor || "No investor data available"}
 
-${
-  investorData.investors?.[2]?.investor.split(" (ID:")[0] ||
-  "No investor data available"
-}
+${investorData.investors?.[2]?.investor || "No investor data available"}
 
 Email templates for outreach:
 ${investorData.emails?.[0]?.email || "No email template available"}
