@@ -70,12 +70,11 @@
 
     If sufficient information IS available, proceed to address the following within your contemplation, showing your reasoning for each point:
 
-    1. **Summarize** the core idea in a single, concise sentence (maximum 20 words).
+    1. **Summarize** the core idea in a single, concise sentence (maximum 20 words). Mention that this is their one-liner, when anyone asks what they're doing, this is what they say.
     2. **Identify** the target audience (be as specific as possible).
-    3. **List** the main problem(s) the idea solves (maximum 3 problems).
-    4. **Identify** the proposed solution(s) (briefly).
+    3. **List** the problems they are trying to solve, and evaluate their planned solution (briefly).
+    4. **Identify** the main problem(s) the idea might run into (maximum 3 problems).
     5. Based on this initial description, provide a **preliminary assessment** of: a) Market Potential (High/Medium/Low), b) Competitive Landscape (High/Medium/Low).  Justify your assessment for each.
-    6. **Extract** keywords that describe the industry or domain (e.g., 'SaaS', 'healthcare', 'AI', 'education').
 
     Show your thinking process *for each of these points* (or your reasoning for needing more information) within the `contemplator` section.
 
@@ -127,4 +126,5 @@ Industry Keywords: [relevant industry/domain terms]"
       ```
     </sufficient_information>
   </output_formats>
+  Note: ALWAYS ALWAYS ALWAYS USE THE CONTEMPLATOR AND FINAL ANSWER TAGS. YOU MUST NEVER EVER BREAK OUT OF THE GIVEN XML TAGS.
 </prompt>

@@ -28,3 +28,4 @@ dist-ssr
 config.toml
 
 __pycache__/
+*.pkl
