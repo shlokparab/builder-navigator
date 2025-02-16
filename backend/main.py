@@ -576,22 +576,26 @@ NOTE: PRETEND THE MODEL'S RESULTS WERE YOUR OWN RESULTS. YOU ARE TALKING TO THE 
 
         # Generate complete analysis
         complete_analysis = f"""
-Based on our analysis of your conversation history, we identified the following key aspects:
-
-Business Analysis:
-{analysis.text}
-
-Key Search Terms Used:
-{', '.join(cleaned_queries)}
+Market Assessment:
+- Market Potential: {analysis.text}
+- Competitive Landscape: High. Numerous players exist in this space. Differentiation through unique features and comprehensive solutions is crucial.
 
 Direct Competitors:
-{json.dumps(top_competitors.get('competitors', []), indent=2)}
 
-This analysis maps out your direct competition in the market.
+1. {top_competitors.get('competitors', [])[0]['name']}
+   {top_competitors.get('competitors', [])[0]['description']}
+   Key Differentiators: {top_competitors.get('competitors', [])[0]['differentiators']}
+
+2. {top_competitors.get('competitors', [])[1]['name']}
+   {top_competitors.get('competitors', [])[1]['description']}
+   Key Differentiators: {top_competitors.get('competitors', [])[1]['differentiators']}
+
+3. {top_competitors.get('competitors', [])[2]['name']}
+   {top_competitors.get('competitors', [])[2]['description']}
+   Key Differentiators: {top_competitors.get('competitors', [])[2]['differentiators']}
 """
         logger.info("Market analysis completed successfully")
         return {
-            "competitors": top_competitors,
             "analysis": complete_analysis
         }
         
@@ -696,6 +700,28 @@ async def generate_mvp():
                 }},
                 "code": "string"
             }}
+
+            For Mermaid diagrams, follow these strict rules:
+1. Node Naming:
+   - Use simple, consistent IDs (like A, B, C or user1, api2, db3)
+   - Reference the same ID throughout the diagram
+   - No spaces or special characters in IDs
+
+2. Node Labels:
+   - Place text descriptions in square brackets at the end of nodes: A[User Interface]
+   - Never put brackets in the middle of text
+   - Keep descriptions concise
+
+3. Diagram Structure:
+   - Always start with "graph LR" or "graph TD"
+   - Use consistent indentation
+   - Group related components using subgraph
+   - End each subgraph properly
+
+4. Styling:
+   - Use white backgrounds
+   - Use simple color codes (#fff, #f9f, etc.)
+   - Keep styling consistent for similar components
             """
             
             mvp_response = mvp_model.generate_content(mvp_prompt)
@@ -749,14 +775,24 @@ async def validate_audio_idea(audio_url: str):
             audio_file = genai.upload_file(audio_path, mime_type="audio/wav")
             logger.info(f"Successfully uploaded audio to Gemini")
             
-            # Use the global chat instance
-            global chat, latest_sufficient_history
-            
-            # Send both the prompt and audio file
-            response = chat.send_message([
-                prompt + "\nPlease analyze the following audio pitch and provide feedback: ",
+            # First, get a transcription using a one-off request
+            transcription_model = genai.GenerativeModel('gemini-2.0-flash')
+            transcription_response = transcription_model.generate_content([
+                "Please provide a precise, word-for-word transcription of this audio. Include only the transcription, no commentary or analysis.",
                 audio_file
             ])
+            
+            if not transcription_response.text:
+                logger.error("Empty transcription response")
+                raise HTTPException(status_code=500, detail="Failed to transcribe audio")
+                
+            logger.info("Successfully transcribed audio")
+            
+            # Use the global chat instance with the transcription
+            global chat, latest_sufficient_history
+            
+            # Send the transcription as if it were text input
+            response = chat.send_message(prompt + "\nUser Query: " + transcription_response.text)
             
             if not response.text:
                 logger.error("Empty response from model")
@@ -798,11 +834,8 @@ async def validate_audio_idea(audio_url: str):
                 except json.JSONDecodeError:
                     logger.warning("Direct JSON parsing failed, attempting to extract JSON content")
                     try:
-                        # Extract status
+                        # Extract status and response using string manipulation
                         status_start = final_answer_text.find('"status":') + len('"status":')
-                        if status_start == -1:
-                            raise ValueError("Could not find status in response")
-                        
                         status_content_start = final_answer_text.find('"', status_start)
                         status_content_end = final_answer_text.find('"', status_content_start + 1)
                         if status_content_start == -1 or status_content_end == -1:
@@ -815,11 +848,7 @@ async def validate_audio_idea(audio_url: str):
                         else:
                             status = final_answer_text[status_content_start + 1:status_content_end].strip()
                         
-                        # Extract response
                         response_start = final_answer_text.find('"response":') + len('"response":')
-                        if response_start == -1:
-                            raise ValueError("Could not find response in final answer")
-                        
                         response_content_start = final_answer_text.find('"', response_start)
                         if response_content_start == -1:
                             response_content = final_answer_text[response_start:].strip()
@@ -855,29 +884,7 @@ async def validate_audio_idea(audio_url: str):
                     logger.info("Sufficient information received, storing chat history")
                     latest_sufficient_history = chat.history.copy()
                     save_chat_history(latest_sufficient_history)
-                    # Reset chat for next conversation
                     chat = model.start_chat(history=[])
-                    
-                    # Clean up the audio file only when we have sufficient information
-                    try:
-                        os.remove(audio_path)
-                        logger.info(f"Cleaned up audio file after receiving sufficient information: {audio_path}")
-                    except Exception as e:
-                        logger.warning(f"Failed to clean up audio file: {str(e)}")
-                else:
-                    logger.info(f"Keeping audio file {audio_path} as we don't have sufficient information yet")
-
-                # Log current chat history state
-                logger.info("Current chat history state at end of audio validation:")
-                logger.info(f"Chat history type: {type(chat.history)}")
-                logger.info(f"Chat history length: {len(chat.history) if chat.history else 0}")
-                if chat.history:
-                    for i, msg in enumerate(chat.history):
-                        logger.info(f"Message {i + 1}:")
-                        logger.info(f"  Parts: {len(msg.parts) if hasattr(msg, 'parts') else 'No parts'}")
-                        if hasattr(msg, 'parts'):
-                            for j, part in enumerate(msg.parts):
-                                logger.info(f"    Part {j + 1}: {str(part)[:100]}...")
                 
                 return result
 
@@ -894,13 +901,13 @@ async def validate_audio_idea(audio_url: str):
             logger.error(f"Gemini processing error: {str(e)}")
             raise HTTPException(status_code=500, detail=f"Failed to process audio with Gemini: {str(e)}")
         finally:
-            # Only clean up audio file in case of errors
+            # Clean up audio file
             try:
-                if os.path.exists(audio_path) and result.get("status") != "sufficient_information":
+                if os.path.exists(audio_path):
                     os.remove(audio_path)
-                    logger.info(f"Cleaned up audio file in finally block due to error: {audio_path}")
+                    logger.info(f"Cleaned up audio file: {audio_path}")
             except Exception as e:
-                logger.warning(f"Failed to clean up audio file in finally block: {str(e)}")
+                logger.warning(f"Failed to clean up audio file: {str(e)}")
             
     except HTTPException:
         raise
