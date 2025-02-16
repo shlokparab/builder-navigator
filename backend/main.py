@@ -715,7 +715,7 @@ async def generate_mvp():
 
 2. Node Labels:
    - Place text descriptions in square brackets at the end of nodes: A[User Interface]
-   - Never put brackets in the middle of text! Never put stuff like [xyz()]! Thats a bracket in the middle of text!
+   - Never put brackets in the middle of text! Never put stuff like [xyz()]! Thats a bracket in the middle of text! Stuff like this: A[User Interface (React)] is wrong! Avoid nesting brackets like this!!!!!!
    - Keep descriptions concise
 
 3. Diagram Structure:
