@@ -134,7 +134,7 @@ logger = logging.getLogger(__name__)
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*", "http://localhost:8080"],  # Frontend URL
+    allow_origins=["*", "http://localhost:8080", "https://pathfinder-theta-three.vercel.app/"],  # Frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
