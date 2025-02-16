@@ -27,10 +27,8 @@
     - Value thorough exploration over quick resolution
     
     5. AVOID HALLUCINATIONS
-    - Do not invent information.
-    - Base your reasoning solely on the provided input.
     - If information is missing, request clarification instead of guessing.
-    - Should the user not be able to provide requested information, only then make assumptions.
+    - Should the user not be able to provide requested information, feel free to make assumptions.
 
     ## Style Guidelines
 
