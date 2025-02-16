@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { SendHorizontal } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Json } from "@/integrations/supabase/types";
+import { MermaidDiagram } from "./MermaidDiagram";
 
 interface ChatMessage {
   user_id: string;
@@ -13,6 +14,8 @@ interface ChatMessage {
   bot_response: string;
   created_at: string;
   contemplator?: string;
+  mermaid_diagram?: string;
+  mvp_code?: string;
 }
 
 type DatabaseChat = ChatMessage[] | null;
@@ -23,11 +26,18 @@ interface ValidateIdeaResponse {
   result: string;
 }
 
+interface MVPResponse {
+  mermaid_diagram: string;
+  mvp_code: string;
+  result: string;
+}
+
 export default function Chat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [askingForAnalysis, setAskingForAnalysis] = useState(false);
+  const [askingForMVP, setAskingForMVP] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -63,18 +73,25 @@ export default function Chat() {
     }
   };
 
-  const validateIdea = async (prompt: string): Promise<ValidateIdeaResponse> => {
+  const validateIdea = async (
+    prompt: string
+  ): Promise<ValidateIdeaResponse> => {
     try {
-      const response = await fetch(`https://builder-navigator.onrender.com/validate_idea?idea=${encodeURIComponent(prompt)}`, {
-        method: 'GET',
-        mode: 'cors',
-        headers: {
-          'Accept': 'application/json'
+      const response = await fetch(
+        `https://builder-navigator.onrender.com/validate_idea?idea=${encodeURIComponent(
+          prompt
+        )}`,
+        {
+          method: "GET",
+          mode: "cors",
+          headers: {
+            Accept: "application/json",
+          },
         }
-      });
+      );
       console.log("Response:", response);
       if (!response.ok) {
-        throw new Error('Failed to validate idea');
+        throw new Error("Failed to validate idea");
       }
 
       return await response.json();
@@ -84,21 +101,54 @@ export default function Chat() {
     }
   };
 
-  const analyzeMarket = async (prompt: string): Promise<ValidateIdeaResponse> => {
+  const analyzeMarket = async (
+    prompt: string
+  ): Promise<ValidateIdeaResponse> => {
     try {
-      const response = await fetch(`https://builder-navigator.onrender.com/analyze_market?idea=${encodeURIComponent(prompt)}`, {
-        method: 'GET',
-        mode: 'cors',
-        headers: {
-          'Accept': 'application/json'
+      const response = await fetch(
+        `https://builder-navigator.onrender.com/analyze_market?idea=${encodeURIComponent(
+          prompt
+        )}`,
+        {
+          method: "GET",
+          mode: "cors",
+          headers: {
+            Accept: "application/json",
+          },
         }
-      });
+      );
       if (!response.ok) {
-        throw new Error('Failed to analyze market');
+        throw new Error("Failed to analyze market");
       }
       return await response.json();
     } catch (error) {
       console.error("Error analyzing market:", error);
+      throw error;
+    }
+  };
+
+  const generateMVP = async (
+    prompt: string
+  ): Promise<MVPResponse> => {
+    try {
+      const response = await fetch(
+        `https://builder-navigator.onrender.com/generate_mvp?idea=${encodeURIComponent(
+          prompt
+        )}`,
+        {
+          method: "GET",
+          mode: "cors",
+          headers: {
+            Accept: "application/json",
+          },
+        }
+      );
+      if (!response.ok) {
+        throw new Error("Failed to generate MVP");
+      }
+      return await response.json();
+    } catch (error) {
+      console.error("Error generating MVP:", error);
       throw error;
     }
   };
@@ -119,7 +169,11 @@ export default function Chat() {
       const newChatMessage: ChatMessage = {
         user_id: user.id,
         message: newMessage,
-        bot_response: askingForAnalysis ? "Analyzing market..." : "Analyzing your idea...",
+        bot_response: askingForAnalysis
+          ? "Analyzing market..."
+          : askingForMVP
+          ? "Generating MVP..."
+          : "Analyzing your idea...",
         created_at: new Date().toISOString(),
       };
 
@@ -149,48 +203,100 @@ export default function Chat() {
       setNewMessage("");
 
       let validationResponse;
-      if (askingForAnalysis) {
-        if (newMessage.toLowerCase().includes('yes')) {
-          validationResponse = await analyzeMarket(messages[messages.length - 2].message);
-          setAskingForAnalysis(false);
-        } else {
-          validationResponse = {
-            status: 'declined',
-            contemplator: '',
-            result: 'No problem! Let me know if you want to analyze another startup idea.'
+      let mvpResponse;
+      
+      if (askingForMVP) {
+        if (newMessage.toLowerCase().includes("yes")) {
+          mvpResponse = await generateMVP(messages[messages.length - 3].message);
+          const botResponse: ChatMessage = {
+            ...newChatMessage,
+            bot_response: mvpResponse.result,
+            mermaid_diagram: mvpResponse.mermaid_diagram,
+            mvp_code: mvpResponse.mvp_code,
+            created_at: new Date().toISOString(),
           };
-          setAskingForAnalysis(false);
+          const finalChat = [...updatedChat.slice(0, -1), botResponse];
+          await supabase
+            .from("profiles")
+            .update({ chat: finalChat as unknown as Json })
+            .eq("id", user.id);
+          setMessages(finalChat);
+        } else {
+          const botResponse: ChatMessage = {
+            ...newChatMessage,
+            bot_response: "Alright! Let me know if you want to explore another startup idea.",
+            created_at: new Date().toISOString(),
+          };
+          const finalChat = [...updatedChat.slice(0, -1), botResponse];
+          await supabase
+            .from("profiles")
+            .update({ chat: finalChat as unknown as Json })
+            .eq("id", user.id);
+          setMessages(finalChat);
         }
+        setAskingForMVP(false);
+      } else if (askingForAnalysis) {
+        if (newMessage.toLowerCase().includes("yes")) {
+          validationResponse = await analyzeMarket(
+            messages[messages.length - 2].message
+          );
+          const botResponse: ChatMessage = {
+            ...newChatMessage,
+            bot_response: validationResponse.result,
+            contemplator: validationResponse.contemplator,
+            created_at: new Date().toISOString(),
+          };
+          const finalChat = [...updatedChat.slice(0, -1), botResponse];
+          await supabase
+            .from("profiles")
+            .update({ chat: finalChat as unknown as Json })
+            .eq("id", user.id);
+          setMessages(finalChat);
+        } else {
+          const botResponse: ChatMessage = {
+            ...newChatMessage,
+            bot_response: "Would you like me to generate an MVP and architecture diagram for your idea? (Yes/No)",
+            created_at: new Date().toISOString(),
+          };
+          const finalChat = [...updatedChat.slice(0, -1), botResponse];
+          await supabase
+            .from("profiles")
+            .update({ chat: finalChat as unknown as Json })
+            .eq("id", user.id);
+          setMessages(finalChat);
+          setAskingForMVP(true);
+        }
+        setAskingForAnalysis(false);
       } else {
         validationResponse = await validateIdea(newMessage);
-      }
-
-      const botResponse: ChatMessage = {
-        ...newChatMessage,
-        bot_response: validationResponse.result,
-        contemplator: validationResponse.contemplator,
-        created_at: new Date().toISOString(),
-      };
-
-      const finalChat = [...updatedChat.slice(0, -1), botResponse];
-
-      if (validationResponse.status === 'sufficient_information' && !askingForAnalysis) {
-        setAskingForAnalysis(true);
-        const analysisQuestion: ChatMessage = {
-          user_id: user.id,
-          message: "",
-          bot_response: "Would you like me to perform a deep market analysis for your idea? (Yes/No)",
+        const botResponse: ChatMessage = {
+          ...newChatMessage,
+          bot_response: validationResponse.result,
+          contemplator: validationResponse.contemplator,
           created_at: new Date().toISOString(),
         };
-        finalChat.push(analysisQuestion);
+
+        const finalChat = [...updatedChat.slice(0, -1), botResponse];
+
+        if (validationResponse.status === "sufficient_information") {
+          setAskingForAnalysis(true);
+          const analysisQuestion: ChatMessage = {
+            user_id: user.id,
+            message: "",
+            bot_response:
+              "Would you like me to perform a deep market analysis for your idea? (Yes/No)",
+            created_at: new Date().toISOString(),
+          };
+          finalChat.push(analysisQuestion);
+        }
+
+        await supabase
+          .from("profiles")
+          .update({ chat: finalChat as unknown as Json })
+          .eq("id", user.id);
+
+        setMessages(finalChat);
       }
-
-      await supabase
-        .from("profiles")
-        .update({ chat: finalChat as unknown as Json })
-        .eq("id", user.id);
-
-      setMessages(finalChat);
     } catch (error) {
       console.error("Error sending message:", error);
       toast({
@@ -220,6 +326,16 @@ export default function Chat() {
                 <div className="flex justify-start">
                   <div className="bg-muted px-4 py-2 rounded-lg max-w-[80%] whitespace-pre-line">
                     {msg.bot_response}
+                    {msg.mermaid_diagram && (
+                      <div className="mt-4">
+                        <MermaidDiagram chart={msg.mermaid_diagram} />
+                      </div>
+                    )}
+                    {msg.mvp_code && (
+                      <div className="mt-4 p-4 bg-gray-800 text-gray-100 rounded-lg overflow-x-auto">
+                        <pre>{msg.mvp_code}</pre>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -234,7 +350,13 @@ export default function Chat() {
             <Input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
-              placeholder={askingForAnalysis ? "Type 'yes' for market analysis..." : "Describe your startup idea..."}
+              placeholder={
+                askingForAnalysis
+                  ? "Type 'yes' for market analysis..."
+                  : askingForMVP
+                  ? "Type 'yes' for MVP generation..."
+                  : "Describe your startup idea..."
+              }
               disabled={isLoading}
               className="flex-1"
             />
