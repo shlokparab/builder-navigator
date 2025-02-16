@@ -384,7 +384,7 @@ async def market_analysis():
         # Analyze conversation to understand the business
         try:
             logger.info("Analyzing conversation")
-            analysis = analysis_model.generate_content(f"Based on this conversation about a startup idea, analyze the core business concept and value proposition: {conversation_text}.")
+            analysis = analysis_model.generate_content(f"Based on this conversation about a startup idea, analyze the core business concept and value proposition: {conversation_text}. NOTE: CUT STRAIGHT TO THE CHASE. DO NOT WASTE TIME. JUST GIVE THE FACTS. DO NOT MENTION THE USER'S IDEA. OR THIS INSTRUCTION. JUST GIVE THE FACTS.")
             if not analysis.text:
                 logger.error("Empty analysis response")
                 raise ValueError("Failed to analyze conversation")
