@@ -36,7 +36,7 @@ interface ChatMessage {
   created_at: string;
   contemplator?: string;
   mvp_code?: string;
-  mermaid_flow?: string;
+  mermaid?: string;
   is_audio?: boolean;
   competitors?: Competitor[];
   market_analysis?: string;
@@ -59,7 +59,10 @@ interface ValidateAudioResponse {
 interface MVPResponse {
   main_response: string;
   code: string;
-  mermaid: string;
+  mermaid: {
+    system_architecture: string;
+    process_flow: string;
+  };
 }
 
 interface AudioRecorderProps {
@@ -428,7 +431,7 @@ export default function Chat() {
             ...newChatMessage,
             bot_response: mvpResponse.main_response,
             mvp_code: mvpResponse.code,
-            mermaid_flow: mvpResponse.mermaid,
+            mermaid: mvpResponse.mermaid.system_architecture,
             created_at: new Date().toISOString(),
           };
           const investorQuestion: ChatMessage = {
@@ -640,11 +643,12 @@ ${investorData.emails?.[2]?.email || "No email template available"}`,
                 <div className="flex justify-start">
                   <div className="bg-gray-800 px-6 py-3 rounded-2xl max-w-[80%] shadow-lg transform hover:scale-[1.02] transition-transform duration-200 whitespace-pre-line">
                     {msg.bot_response}
-                    {msg.mermaid_flow && (
+                    {msg.mermaid && (
                       <div className="mt-6 p-4 bg-gray-900 text-gray-100 rounded-xl overflow-x-auto shadow-inner">
-                        <pre className="font-mono text-sm">
-                          {msg.mermaid_flow}
-                        </pre>
+                        <h4 className="text-sm font-semibold mb-2">
+                          Flow Diagram
+                        </h4>
+                        <pre className="font-mono text-sm">{msg.mermaid}</pre>
                       </div>
                     )}
                     {msg.mvp_code && (
