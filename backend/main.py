@@ -8,6 +8,7 @@ import requests
 import logging
 import time
 import pickle
+from supabase import create_client, Client
 
 # Load prompt from file
 prompt = open("prompt.txt").read()
@@ -183,6 +184,11 @@ competitorfinder_model = genai.GenerativeModel(
     model_name="gemini-2.0-flash",
     generation_config=structured_competitor_generation_config,
 )
+
+# Add Supabase client configuration after other configurations
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @app.get("/")
 async def hello_world():
@@ -709,7 +715,7 @@ async def generate_mvp():
 
 2. Node Labels:
    - Place text descriptions in square brackets at the end of nodes: A[User Interface]
-   - Never put brackets in the middle of text
+   - Never put brackets in the middle of text! Never put stuff like [xyz()]! Thats a bracket in the middle of text! Stuff like this: A[User Interface (React)] is wrong! Avoid nesting brackets like this!!!!!!
    - Keep descriptions concise
 
 3. Diagram Structure:
@@ -913,4 +919,115 @@ async def validate_audio_idea(audio_url: str):
         raise
     except Exception as e:
         logger.error(f"Validation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/investor_recommendations")
+async def get_investor_recommendations():
+    try:
+        global latest_sufficient_history
+        
+        logger.info("Starting investor recommendations")
+        
+        # Try to load history if not in memory
+        if not latest_sufficient_history:
+            latest_sufficient_history = load_chat_history()
+            
+        if not latest_sufficient_history:
+            raise HTTPException(
+                status_code=400,
+                detail="No sufficient conversation history available. Please complete idea validation first."
+            )
+        
+        # Convert history to text
+        conversation_text = ""
+        try:
+            conversation_messages = []
+            for msg in latest_sufficient_history:
+                parts = getattr(msg, 'parts', [])
+                if len(parts) >= 2:
+                    user_text = parts[0].text if hasattr(parts[0], 'text') else str(parts[0])
+                    assistant_text = parts[1].text if hasattr(parts[1], 'text') else str(parts[1])
+                    conversation_messages.append(f"User: {user_text}\nAssistant: {assistant_text}")
+                else:
+                    msg_text = str(msg)
+                    conversation_messages.append(msg_text)
+            
+            conversation_text = "\n".join(conversation_messages)
+            logger.info("Successfully processed conversation history")
+        except Exception as e:
+            logger.error(f"Failed to process conversation history: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+        # Fetch investor list from Supabase
+        try:
+            response = supabase.table('investor_list').select("*").execute()
+            investors_data = response.data
+            logger.info(f"Successfully fetched {len(investors_data)} investors from database")
+        except Exception as e:
+            logger.error(f"Failed to fetch investors: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Database error: {str(e)}")
+
+        # Initialize recommendation model
+        investor_model = genai.GenerativeModel(
+            model_name="gemini-2.0-flash",
+            generation_config={
+                "temperature": 0.7,
+                "top_p": 0.95,
+                "top_k": 40,
+                "max_output_tokens": 8192,
+                "response_mime_type": "application/json"
+            }
+        )
+
+        # Generate recommendations
+        try:
+            prompt = f"""Based on the following startup conversation and investor database, recommend the top 3 most suitable investors and craft personalized email pitches.
+
+Startup Conversation:
+{conversation_text}
+
+Investor Database:
+{json.dumps(investors_data, indent=2)}
+
+Requirements:
+1. Select exactly 3 investors whose investment focus and portfolio align best with this startup
+2. For each investor, craft a personalized email that:
+   - References their specific investment history
+   - Connects the startup to their investment thesis
+   - Highlights relevant market opportunities
+   - Keeps emails concise (100-200 words)
+
+Return a JSON object with exactly this structure:
+{{
+    "investors": [
+        investor1 (who they are and why them, 50 words),
+        investor2 (who they are and why them, 50 words),
+        investor3 (who they are and why them, 50 words)
+    ],
+    "emails": [
+        email1,
+        email2,
+        email3
+    ]
+}}
+
+Ensure each email is unique and specifically tailored to the corresponding investor."""
+
+            response = investor_model.generate_content(prompt)
+            if not response.text:
+                raise ValueError("Empty response from model")
+
+            recommendations = json.loads(response.text)
+            logger.info("Successfully generated investor recommendations")
+            
+            return recommendations
+
+        except Exception as e:
+            logger.error(f"Failed to generate recommendations: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
