@@ -19,14 +19,8 @@ interface MarketAnalysisResponse {
 }
 
 interface InvestorRecommendation {
-  investors?: Array<{
-    investor: string;
-    id?: number;
-  }>;
-  emails?: Array<{
-    investor: string;
-    email: string;
-  }>;
+  investors: Array<{ [key: string]: string }>;
+  emails: Array<{ [key: string]: string }>;
 }
 
 interface ChatMessage {
@@ -57,7 +51,7 @@ interface ValidateAudioResponse {
 }
 
 interface MVPResponse {
-  main_response: string;  
+  main_response: string;
   code: string;
   mermaid: {
     system_architecture: string;
@@ -481,23 +475,30 @@ export default function Chat() {
             throw new Error("Failed to get investor recommendations");
           }
           const investorData: InvestorRecommendation = await response.json();
+          console.log("Investor Data:", investorData);
+
           const botResponse: ChatMessage = {
             ...newChatMessage,
             bot_response: `Here are some recommended investors for your startup:
-${investorData.investors?.[0]?.investor || "No investor data available"}
 
-${investorData.investors?.[1]?.investor || "No investor data available"}
-
-${investorData.investors?.[2]?.investor || "No investor data available"}
+${investorData.investors.map((inv) => Object.values(inv)[0]).join("\n\n")}
 
 Email templates for outreach:
-${investorData.emails?.[0]?.email || "No email template available"}
 
-${investorData.emails?.[1]?.email || "No email template available"}
-
-${investorData.emails?.[2]?.email || "No email template available"}`,
+${investorData.emails
+  .map((email) => {
+    const fullEmail = Object.values(email)[0];
+    return fullEmail.replace(/\n/g, "\n"); // Preserve newlines in email content
+  })
+  .join("\n\n")}`,
             created_at: new Date().toISOString(),
           };
+
+          if (!investorData.investors.length || !investorData.emails.length) {
+            botResponse.bot_response =
+              "Sorry, I couldn't retrieve the investor recommendations at this time. Please try again later.";
+          }
+
           const finalChat = [...updatedChat.slice(0, -1), botResponse];
           await supabase
             .from("profiles")
