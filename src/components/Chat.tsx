@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { SendHorizontal, Mic, MicOff } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { Json } from "@/integrations/supabase/types";
-import { MermaidDiagram } from "./MermaidDiagram";
 
 interface Competitor {
   name: string;
@@ -36,8 +35,8 @@ interface ChatMessage {
   bot_response: string;
   created_at: string;
   contemplator?: string;
-  mermaid_diagram?: string;
   mvp_code?: string;
+  mermaid_flow?: string;
   is_audio?: boolean;
   competitors?: Competitor[];
   market_analysis?: string;
@@ -59,11 +58,8 @@ interface ValidateAudioResponse {
 
 interface MVPResponse {
   main_response: string;
-  mermaid: {
-    system_architecture: string;
-    process_flow: string;
-  };
   code: string;
+  mermaid: string;
 }
 
 interface AudioRecorderProps {
@@ -431,8 +427,8 @@ export default function Chat() {
           const botResponse: ChatMessage = {
             ...newChatMessage,
             bot_response: mvpResponse.main_response,
-            mermaid_diagram: mvpResponse.mermaid.system_architecture,
             mvp_code: mvpResponse.code,
+            mermaid_flow: mvpResponse.mermaid,
             created_at: new Date().toISOString(),
           };
           const investorQuestion: ChatMessage = {
@@ -644,9 +640,11 @@ ${investorData.emails?.[2]?.email || "No email template available"}`,
                 <div className="flex justify-start">
                   <div className="bg-gray-800 px-6 py-3 rounded-2xl max-w-[80%] shadow-lg transform hover:scale-[1.02] transition-transform duration-200 whitespace-pre-line">
                     {msg.bot_response}
-                    {msg.mermaid_diagram && (
-                      <div className="mt-6 rounded-xl overflow-hidden shadow-lg">
-                        <MermaidDiagram chart={msg.mermaid_diagram} />
+                    {msg.mermaid_flow && (
+                      <div className="mt-6 p-4 bg-gray-900 text-gray-100 rounded-xl overflow-x-auto shadow-inner">
+                        <pre className="font-mono text-sm">
+                          {msg.mermaid_flow}
+                        </pre>
                       </div>
                     )}
                     {msg.mvp_code && (
