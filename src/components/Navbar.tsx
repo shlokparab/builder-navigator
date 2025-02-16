@@ -1,4 +1,4 @@
-import { Bell, Menu, User, Home, LightbulbIcon, Rocket, Users } from "lucide-react";
+import { Menu, User, Home, LightbulbIcon, Rocket, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import {
   DropdownMenu,
@@ -37,12 +37,15 @@ export const Navbar = () => {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <h1 className="text-xl font-semibold text-white">BuilderNavigator</h1>
+          <Link 
+            to="/dashboard" 
+            className="p-2 hover:bg-white/5 rounded-full transition-colors"
+          >
+            <Home className="w-5 h-5 text-gray-300" />
+          </Link>
+          <h1 className="text-xl font-semibold text-white">PathFinder</h1>
         </div>
         <div className="flex items-center gap-4">
-          <button className="p-2 hover:bg-white/5 rounded-full transition-colors">
-            <Bell className="w-5 h-5 text-gray-300" />
-          </button>
           <Link to="/profile" className="p-2 hover:bg-white/5 rounded-full transition-colors">
             <User className="w-5 h-5 text-gray-300" />
           </Link>
